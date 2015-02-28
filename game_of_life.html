@@ -1,0 +1,178 @@
+<canvas id="canvas1" width=800 height=600></canvas>
+<script>
+var canvas = document.getElementById("canvas1");
+var ctx = canvas.getContext("2d");
+var lastTargetClicked = canvas;
+var paused = false;
+
+function mod(num1, num2)	{
+	return ((num1 % num2) + num2) % num2;
+}
+
+function Vector2(x, y) {
+	this.x = x;
+	this.y = y;
+}
+
+var cellSize = new Vector2(6, 6);
+var worldSize = new Vector2(Math.floor(canvas.width / cellSize.x), Math.floor(canvas.height / cellSize.y));
+var cellCount = worldSize.x * worldSize.y;
+var speed = 20;
+var colChangeSpeed = 8;
+var step = 60 / speed;
+var updateTimer = 0;
+
+var cells = [];
+var colors = [];
+
+function setCell(x, y, cell) {
+	var index = mod(x, worldSize.x) + mod(y, worldSize.y) * worldSize.x;
+	cells[index] = cell;
+	colors[index] = 0;
+}
+
+function getCell(x, y) {
+	var index = mod(x, worldSize.x) + mod(y, worldSize.y) * worldSize.x;
+	return cells[index];
+}
+
+function fillCells() {
+	for (var j = 0;j < worldSize.y;j++) {
+		for (var i = 0;i < worldSize.x;i++) {
+			setCell(i, j, false);
+		}
+	}
+}
+
+function fillCellsRandom() {
+	for (var j = 0;j < worldSize.y;j++) {
+		for (var i = 0;i < worldSize.x;i++) {
+			setCell(i, j, Math.random() > 0.7);
+		}
+	}
+}
+
+function drawCells() {
+	for (var j = 0;j < worldSize.y;j++) {
+		for (var i = 0;i < worldSize.x;i++) {
+			var cell = getCell(i, j);
+			if (cell) {
+				var red = Math.floor(colors[i + j * worldSize.x] / (colChangeSpeed - 1) * 255);
+				var blue = 255 - Math.floor(colors[i + j * worldSize.x] / (colChangeSpeed - 1) * 255);
+				ctx.fillStyle = "rgba(" + red + ", 0, " + blue + ", 255)";
+				ctx.fillRect(i * cellSize.x, j * cellSize.y, cellSize.x, cellSize.y);
+			}
+		}
+	}
+}
+
+function getNeighborCount(x, y) {
+	var cellNW = getCell(x - 1, y - 1);
+	var cellN = getCell(x, y - 1);
+	var cellNE = getCell(x + 1, y - 1);
+	var cellE = getCell(x + 1, y);
+	var cellSE = getCell(x + 1, y + 1);
+	var cellS = getCell(x, y + 1);
+	var cellSW = getCell(x - 1, y + 1);
+	var cellW = getCell(x - 1, y);
+	
+	var nbrCount = 0;
+
+	if (cellNW) nbrCount++;
+	if (cellN) nbrCount++;
+	if (cellNE) nbrCount++;
+	if (cellE) nbrCount++;
+	if (cellSE) nbrCount++;
+	if (cellS) nbrCount++;
+	if (cellSW) nbrCount++;
+	if (cellW) nbrCount++;
+	
+	return nbrCount;
+}
+
+function runRules(cell, x, y) {
+	var nbrCount = getNeighborCount(x, y);
+
+	if (cell) {
+		if (nbrCount < 2) {
+			return false;
+		} else if (nbrCount <= 3) {
+			return true;
+		} else if (nbrCount > 3) {
+			return false;
+		} else {
+			return false;
+		}
+	} else {
+		if (nbrCount == 3) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+}
+
+var nextGenCells = [];
+function update() {
+	for (var j = 0;j < worldSize.y;j++) {
+		for (var i = 0;i < worldSize.x;i++) {
+			var cell = getCell(i, j);
+			var result = runRules(cell, i, j);
+			nextGenCells[i + j * worldSize.x] = result;
+			
+			var colIndex = i + j * worldSize.x;
+			if (result == cell) {
+				colors[colIndex]++;
+				if (colors[colIndex] > colChangeSpeed - 1) {
+					colors[colIndex] = colChangeSpeed - 1;
+				}
+			} else {
+				colors[colIndex] = 0;
+			}
+		}
+	}
+	cells = nextGenCells.slice(0);
+}
+
+function drawFrame() {
+	if (!paused) {
+		if (updateTimer == step) {
+			update();
+			updateTimer = 0;
+		}
+		updateTimer++;
+	}
+	
+	ctx.fillStyle = "#000000";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	drawCells();
+}
+
+function initialize() {
+	document.addEventListener('mousedown', function(event) {
+        lastTargetClicked = event.target;
+		var mx = Math.floor((event.clientX - canvas.offsetLeft) / cellSize.x);
+		var my = Math.floor((event.clientY - canvas.offsetTop) / cellSize.y);
+		setCell(mx, my, !getCell(mx, my));
+    }, false);
+
+    document.addEventListener('keydown', function(event) {
+        if(lastTargetClicked == canvas) {
+			if (event.keyCode == 67) {
+				fillCells();
+			} else if (event.keyCode == 82) {
+				fillCellsRandom();
+			} else if (event.keyCode == 80) {
+				paused = !paused;
+			}
+        }
+    }, false);
+
+	fillCells();
+	
+	setInterval(drawFrame, 1000 / 60);
+}
+
+initialize();
+
+</script>
